@@ -22,7 +22,10 @@ Licensed under GNU GPL version 3, or later.
 Page: <https://forums.alliedmods.net/showthread.php?p=1883705> - <https://github.com/d-ai/SourceComms>
 *************************************************************************/
 
+use SteamID\SteamID;
+
 global $theme;
+
 if (!defined("IN_SB")) {
     echo "You should not be here. Only follow links!";
     die();
@@ -220,9 +223,21 @@ if (isset($_SESSION["hideinactive"])) {
     $hideinactiven = "";
 }
 
-
 if (isset($_GET['searchText'])) {
-    $search = '%' . trim($_GET['searchText']) . '%';
+    $searchText = trim($_GET['searchText']);
+
+    try {
+        SteamID::init();
+        if (SteamID::isValidID($searchText)) {
+            $conversionResult = SteamID::toSteam2($searchText);
+
+            if ($conversionResult) {
+                $searchText = $conversionResult;
+            }
+        }
+    } catch (Exception $e) { }
+
+    $search = "%{$searchText}%";
 
     $res = $GLOBALS['db']->Execute("SELECT bid ban_id, CO.type, CO.authid, CO.name player_name, created ban_created, ends ban_ends, length ban_length, reason ban_reason, CO.ureason unban_reason, CO.aid, AD.gid AS gid, adminIp, CO.sid ban_server, RemovedOn, RemovedBy, RemoveType row_type,
 		SE.ip server_ip, AD.user admin_name, MO.icon as mod_icon,
@@ -275,6 +290,18 @@ if (isset($_GET['searchText'])) {
 $advcrit = [];
 if (isset($_GET['advSearch'])) {
     $value = trim($_GET['advSearch']);
+
+    try {
+        SteamID::init();
+        if (SteamID::isValidID($value)) {
+            $conversionResult = SteamID::toSteam2($value);
+
+            if ($conversionResult) {
+                $value = $conversionResult;
+            }
+        }
+    } catch (Exception $e) { }
+
     $type  = $_GET['advType'];
     switch ($type) {
         case "name":
@@ -454,7 +481,17 @@ while (!$res->EOF) {
     }
 
     $data['ban_date']    = Config::time($res->fields['ban_created']);
-    $data['player']      = addslashes($res->fields['player_name']);
+
+    // Fix #1008 - bug: Player Names Contain Unwanted Non-Standard Characters
+    $raw_name = $res->fields['player_name'];
+    $cleaned_name = mb_convert_encoding($raw_name, 'UTF-8', 'UTF-8');
+    $unwanted_sequences = ["\xF3\xA0\x80\xA1"];
+    foreach ($unwanted_sequences as $sequence) {
+        $cleaned_name = str_replace($sequence, '', $cleaned_name);
+    }
+    $cleaned_name = trim($cleaned_name);
+
+    $data['player']      = addslashes($cleaned_name);
     $data['steamid']     = $res->fields['authid'];
     // Fix #906 - Bad SteamID Format broke the page view, so give them an null SteamID.
     if (!\SteamID\SteamID::isValidID($data['steamid'])) {
