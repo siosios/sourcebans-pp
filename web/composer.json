@@ -23,7 +23,7 @@
         "maxmind-db/reader": "~1.0",
         "smarty/smarty": "~v5.4.1",
         "xpaw/php-source-query-class": "dev-master",
-        "adodb/adodb-php": "5.22.7",
+        "adodb/adodb-php": "5.22.12",
         "symfony/mailer": "^7.2",
         "ext-pdo": "*",
         "ext-openssl": "*",
